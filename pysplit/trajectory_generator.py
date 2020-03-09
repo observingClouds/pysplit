@@ -11,7 +11,8 @@ def generate_bulktraj(basename, hysplit_working, output_dir, meteo_dir, years,
                       meteoyr_2digits=True, outputyr_2digits=False,
                       monthslice=slice(0, 32, 1), meteo_bookends=([4, 5], [1]),
                       get_reverse=False, get_clipped=False,
-                      hysplit="C:\\hysplit4\\exec\\hyts_std"):
+                      hysplit="C:\\hysplit4\\exec\\hyts_std",
+                      vertical_motion_mode=0):
     """
     Generate sequence of trajectories within given time frame(s).
 
@@ -83,6 +84,17 @@ def generate_bulktraj(basename, hysplit_working, output_dir, meteo_dir, years,
         Default "C:\\hysplit4\\exec\\hyts_std".  The location of the "hyts_std"
         executable that generates trajectories.  This is the default location
         for a typical PC installation of HYSPLIT
+    vertical_motion_mode : int
+        The mode how the vertical motion of the tracer should be calculated.
+        0 : input model data (default)
+        1 : isobaric
+        2 : isentropic
+        3 : constant density
+        4 : isosigma
+        5 : from divergence
+        6 : remap MSL to ASL
+        7 : average data
+        8 : damped amplitude
 
     """
     # Set year formatting in 3 places
@@ -158,7 +170,8 @@ def generate_bulktraj(basename, hysplit_working, output_dir, meteo_dir, years,
 
                 # Populate CONTROL file with trajectory initialization data
                 _populate_control(coordinates, controlyr, m, d, h, a, meteo_dir,
-                                  meteofiles, run, controlfname, trajname)
+                                  meteofiles, run, controlfname, trajname,
+                                  vertical_motion_mode)
 
                 # Call executable to calculate trajectory
                 call(hysplit)
@@ -166,7 +179,8 @@ def generate_bulktraj(basename, hysplit_working, output_dir, meteo_dir, years,
                 # Generate reverse and/or clipped trajectories, if indicated
                 if get_reverse:
                     _reversetraj_whilegen(trajname, run, hysplit, output_rdir,
-                                          meteo_dir, meteofiles, controlfname)
+                                          meteo_dir, meteofiles, controlfname,
+                                          vertical_motion_mode)
 
                 if get_clipped:
                     _cliptraj(output_cdir, trajname)
@@ -180,7 +194,7 @@ def generate_bulktraj(basename, hysplit_working, output_dir, meteo_dir, years,
 
 
 def _reversetraj_whilegen(trajname, run, hysplit, output_rdir, meteo_dir,
-                          meteofiles, controlfname):
+                          meteofiles, controlfname, vertical_motion_mode=0):
     """
     Calculate reverse trajectory during main trajectory generation.
 
@@ -206,6 +220,8 @@ def _reversetraj_whilegen(trajname, run, hysplit, output_rdir, meteo_dir,
         reverse trajectory.
     controlfname : string
         The name of the control file, which should be 'CONTROL'
+    vertical_motion_mode : int
+        The mode how the vertical motion of the tracer should be calculated.
 
     """
     # Initialize name, path
@@ -247,7 +263,8 @@ def _reversetraj_whilegen(trajname, run, hysplit, output_rdir, meteo_dir,
 
     # Populate control text
     _populate_control((lat, lon), yr, mon, day, hour, alt, meteo_dir,
-                      meteofiles, run, controlfname, reversetrajname)
+                      meteofiles, run, controlfname, reversetrajname,
+                      vertical_motion_mode)
 
     # Call executable
     call(hysplit)
@@ -418,7 +435,7 @@ def _meteofinder(meteo_dir, meteo_bookends, mon, year, mon_dict,
 
 
 def _populate_control(coords, year, month, day, hour, alt,
-                      meteo_dir, meteofiles, run, controlfname, trajname):
+                      meteo_dir, meteofiles, run, controlfname, trajname, vertical_motion_mode=0):
     """
     Initialize and write CONTROL text to file (called CONTROL).
 
@@ -446,13 +463,15 @@ def _populate_control(coords, year, month, day, hour, alt,
         The name of the control file, which should be 'CONTROL'
     trajname : string
         The intended name of the trajectory file
+    vertical_motion_mode : int
+        The mode how the vertical motion of the tracer should be calculated.
 
     """
     controltext = [year + " {0:02} {1:02} {2:02}\n".format(month, day, hour),
                    "1\n",
                    "{0!s} {1!s} {2!s}\n".format(coords[0], coords[1], alt),
                    "{0!s}\n".format(run),
-                   "0\n",
+                   "{}\n".format(vertical_motion_mode),
                    "10000.0\n",
                    "{0!s}\n".format(len(meteofiles))]
 

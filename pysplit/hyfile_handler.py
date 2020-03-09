@@ -121,7 +121,7 @@ def load_hysplitfile(filename):
                 continue
 
             # OMEGA happens first
-            if 'OMEGA' in line:
+            if ('BACKWARD' in line) or ('FORWARD' in line):
                 num_parcels = int(line.split()[0])
 
                 multiple_traj = False
